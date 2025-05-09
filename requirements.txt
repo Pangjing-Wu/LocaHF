@@ -1,0 +1,13 @@
+# --- web service stack -------------------------------------------------
+fastapi==0.115.12          # async API framework (v0.115.12, 23 Mar 2025)
+uvicorn[standard]==0.34.2  # production ASGI server (v0.34.2, 19 Apr 2025)
+pydantic==2.11.1           # FastAPI’s data-validation backbone (v2.11.1, 28 Mar 2025)
+
+# --- HF model & runtime ------------------------------------------------
+transformers==4.51.3       # Hugging Face pipeline (v4.51.3, 14 Apr 2025)
+torch==2.7.0               # PyTorch backend (v2.7.0, 23 Apr 2025)
+accelerate==1.6.0          # device-placement helpers for HF (v1.6.0, 1 Apr 2025)
+
+# --- client / misc utilities ------------------------------------------
+openai==1.78.0             # optional local client calls (latest 2025-05-07)
+requests==2.32.3           # simple HTTP calls in the demo script (v2.32.3, 29 May 2024)

@@ -1,0 +1,15 @@
+{
+    "models": {
+        "Qwen/Qwen2.5-0.5B": {
+            "generation": {
+                "temperature": 0.0,
+                "top_p": 0.0,
+                "max_new_tokens": 128
+            }
+        }
+    },
+    "log": {
+        "level": "INFO",
+        "path": "./server.log"
+    }
+}

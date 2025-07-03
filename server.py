@@ -34,7 +34,7 @@ DEFAULT_LOG_CONFIG: Dict[str, Any] = {
 # arguments setting levels: arguments > configs.json > default
 
 parser = argparse.ArgumentParser("Serve a HF chat model via FastAPI.")
-parser.add_argument("--model", default="Qwen/Qwen2.5-0.5B", help="🤗 Hub model ID or local path")
+parser.add_argument("--models", type=str, nargs='+', help="🤗 Hub model ID or local path")
 parser.add_argument("--device", default='cuda:0', help="GPU idx, 'auto', or 'cpu'")
 parser.add_argument("--max_concurrency", type=int, default=1)
 parser.add_argument("--port", type=int, default=8000)
@@ -74,23 +74,30 @@ except Exception as e:
     exit(1)
 
 
-# load tokenizer and model.
+# load tokenizers and models.
 # ---------------------------------------------------------------------
-logging.info(f"Loading tokenizer for {args.model} ...")
-tokenizer = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
+tokenizers = dict()
+hf_pipelines = dict()
+infos = dict()
+semas = dict()
 
-logging.info(f"Loading model on device={model_configs['device']} ...")
-pipe_kw: Dict[str, Any] = dict(
-    task="text-generation",
-    model=args.model,
-    tokenizer=tokenizer,
-    trust_remote_code=True,
-    device_map=model_configs['device']
-)
+for model in args.models:
+    logging.info(f"Loading tokenizer for {model} ...")
+    tokenizers[model] = AutoTokenizer.from_pretrained(model, trust_remote_code=True)
 
-hf_pipeline = pipeline(**pipe_kw)
-param_m = sum(p.numel() for p in hf_pipeline.model.parameters()) // 1_000_000_000
-sema = asyncio.Semaphore(model_configs["max_concurrency"])
+    logging.info(f"Loading model on device={model_configs['device']} ...")
+    hf_pipelines[model] = pipeline(
+        task="text-generation",
+        model=model,
+        tokenizer=tokenizers[model],
+        trust_remote_code=True,
+        device_map=model_configs['device']
+    )
+    infos[model] = {
+        "param_m": sum(p.numel() for p in hf_pipelines[model].model.parameters()) // 1_000_000_000,
+        "max_concurrency": model_configs["max_concurrency"],
+    }
+    semas[model] = asyncio.Semaphore(model_configs["max_concurrency"])
 
 
 # build FastAPI app.
@@ -110,9 +117,9 @@ class ChatRequest(BaseModel):
     max_new_tokens: Optional[int] = None
 
 
-def build_prompt(msgs: List[Message]) -> str:
+def build_prompt(model: str, msgs: List[Message]) -> str:
     try:
-        return tokenizer.apply_chat_template(
+        return tokenizers[model].apply_chat_template(
             [m.model_dump() for m in msgs],
             tokenize=False,
             add_generation_prompt=True,
@@ -122,28 +129,29 @@ def build_prompt(msgs: List[Message]) -> str:
         return "\n".join(f"{m.role}: {m.content}" for m in msgs) + "\nassistant:"
 
 
-async def run_gen(prompt: str, gcfg: Dict[str, Any]) -> str:
+async def run_gen(model: str, prompt: str, gcfg: Dict[str, Any]) -> str:
     loop = asyncio.get_event_loop()
-    async with sema:
+    async with semas[model]:
         out = await loop.run_in_executor(
             None,
-            lambda: hf_pipeline(prompt, **gcfg, do_sample=True)[0]["generated_text"],
+            lambda: hf_pipelines[model](prompt, **gcfg, do_sample=True)[0]["generated_text"],
         )
     return out[len(prompt):]
 
 
 @app.post("/v1/chat/completions")
 async def chat(req: ChatRequest):
-    if req.model != args.model:
+    if req.model not in args.models:
         raise HTTPException(400, "Model name mismatch")
+    
     gcfg = {
         "temperature":    req.temperature    or model_configs["generation"]["temperature"],
         "top_p":          req.top_p          or model_configs["generation"]["top_p"],
         "max_new_tokens": req.max_new_tokens or model_configs["generation"]["max_new_tokens"],
     }
-    prompt = build_prompt(req.messages)
+    prompt = build_prompt(req.model, req.messages)
     try:
-        completion = await run_gen(prompt, gcfg)
+        completion = await run_gen(req.model, prompt, gcfg)
     except RuntimeError as exc:
         raise HTTPException(500, str(exc))
 
@@ -155,23 +163,23 @@ async def chat(req: ChatRequest):
             "message": {"role": "assistant", "content": completion},
             "finish_reason": "stop"
         }],
-        "model": args.model,
+        "model": req.model,
     }
 
 
 @app.get("/v1/models")
 def meta():
     return {
-        "name": args.model,
+        "name": args.models,
         "device": model_configs["device"],
-        "max_concurrency": model_configs["max_concurrency"],
+        "max_concurrency": args.max_concurrency,
         "generation_defaults": model_configs["generation"],
-        "param_count": f'{int(param_m)}B',
+        "param_count": [f'{infos[model]["param_m"]}B' for model in args.models],
     }
 
 
 if __name__ == "__main__":
-    logging.info(f"Ready - {int(param_m)}B params | max concurrency = {model_configs['max_concurrency']}")
+    logging.info(f"Ready - {infos[args.models[0]]['param_m']}B params | max concurrency = {infos[args.models[0]]['max_concurrency']}")
     try:
         uvicorn.run(
             app,

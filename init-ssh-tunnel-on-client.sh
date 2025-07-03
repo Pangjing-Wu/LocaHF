@@ -1,0 +1,7 @@
+#!/bin/bash
+SERVER_PORT=8888
+USERNAME=username
+SERVER_IP=0.0.0.0
+
+
+ssh -p $SERVER_PORT -f -N -L 8000:localhost:8000 $USERNAME@$SERVER_IP

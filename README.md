@@ -42,6 +42,9 @@ Quick start
 
 4.  Talk to it with the official **openai** client. See [client.py](./client.py).
 
+> [!IMPORTANT]
+> If you are running the backend LLM service in a container of remote server via a specific port, i.e., you generally login the server via `ssh -p <port> user@127.0.0.0`, it would be better to set a SSL tunnel by running [this script](./init-ssh-tunnel-on-client.sh) before starting the client calling.
+
 TODO
 -----------
 1. Support vLLM with image input.

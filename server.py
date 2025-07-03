@@ -38,6 +38,7 @@ parser.add_argument("--model", default="Qwen/Qwen2.5-0.5B", help="🤗 Hub model
 parser.add_argument("--device", default='cuda:0', help="GPU idx, 'auto', or 'cpu'")
 parser.add_argument("--max_concurrency", type=int, default=1)
 parser.add_argument("--port", type=int, default=8000)
+parser.add_argument("--hf-token", type=str, default=None, help="Hugging Face access token for CLI login")
 args = parser.parse_args()
 
 # load configs from configs.json
@@ -60,6 +61,17 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 logging.info("Logging initialised → %s (level=%s)", log_configs["path"], _log_level_name)
+
+
+# Hugging Face CLI login
+print("[INFO] Logging into Hugging Face CLI...")
+try:
+    from huggingface_hub import login as hf_login_func
+    if args.hf_token:
+        hf_login_func(token=args.hf_token, add_to_git_credential=True)
+except Exception as e:
+    print(f"[ERROR] Hugging Face login failed: {e}")
+    exit(1)
 
 
 # load tokenizer and model.

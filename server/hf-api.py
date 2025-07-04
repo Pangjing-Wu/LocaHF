@@ -33,7 +33,7 @@ args = parser.parse_args()
 # set up logging
 # ----------------------------------------------------------------------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logging.info("Logging initialised (level=INFO)")
+logging.info("Logging initialized (level=INFO)")
 
 
 # Hugging Face CLI login

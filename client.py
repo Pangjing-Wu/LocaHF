@@ -8,7 +8,7 @@ client = OpenAI(
 
 # chat
 resp = client.chat.completions.create(
-    model="Qwen/Qwen2.5-0.5B",
+    model="Qwen/Qwen2.5-7B-Instruct",
     messages=[{"role": "user", "content": "Hello!, Who are you?"}],
     temperature=0.8,
     top_p=0.9,

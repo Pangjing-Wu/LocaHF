@@ -28,7 +28,7 @@ Quick start
     > uv pip install "sglang[all]>=0.4.8.post1" 
     > ```
     > Please note that `sglang` requires `nvcc`. If you have not installed it, you can install it by:
-    > `conda install -c conda-forge cudatoolkit-dev`
+    > `conda install -c nvidia cuda-toolkit`
 
 2.  Add or edit the optional **configs.json**
 

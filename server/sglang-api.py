@@ -11,7 +11,7 @@ else:
 
 
 parser = argparse.ArgumentParser("Serve a sglang model via FastAPI.")
-parser.add_argument("--model", type=str, help="🤗 Hub model ID or local path")
+parser.add_argument("--model", type=str, default="Qwen/Qwen2.5-7B-Instruct", help="🤗 Hub model ID or local path")
 parser.add_argument("--device", default='cuda:0', help="GPU idx, 'auto', or 'cpu'")
 parser.add_argument("--port", type=int, default=8000)
 parser.add_argument("--hf-token", type=str, default=None, help="Hugging Face access token for CLI login")

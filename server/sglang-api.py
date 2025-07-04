@@ -12,12 +12,12 @@ else:
 
 parser = argparse.ArgumentParser("Serve a sglang model via FastAPI.")
 parser.add_argument("--model", type=str, default="Qwen/Qwen2.5-7B-Instruct", help="🤗 Hub model ID or local path")
-parser.add_argument("--device", default='cuda:0', help="GPU idx, 'auto', or 'cpu'")
+parser.add_argument("--mem-fraction-static", default='0.7', help="memory usage of the KV cache pool")
+parser.add_argument("--dtype", default='auto', help="data type of the model")
 parser.add_argument("--port", type=int, default=8000)
-parser.add_argument("--hf-token", type=str, default=None, help="Hugging Face access token for CLI login")
 args = parser.parse_args()
 
 
-server_process, port = launch_server_cmd(f"python3 -m sglang.launch_server --model-path {args.model}", host="0.0.0.0", port=args.port)
+server_process, port = launch_server_cmd(f"python3 -m sglang.launch_server --model-path {args.model} --mem-fraction-static {args.mem_fraction_static} --dtype {args.dtype}", host="0.0.0.0", port=args.port)
 
 wait_for_server(f"http://localhost:{port}")

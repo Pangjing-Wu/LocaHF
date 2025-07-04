@@ -1,7 +1,6 @@
 import argparse
 import asyncio
 import logging
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import uvicorn
@@ -9,10 +8,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from transformers import AutoTokenizer, pipeline
 
-from utils import load_json_cfg, deep_merge_dict
 
-
-CONFIG_PATH = Path(__file__).with_name("configs.json")
 
 DEFAULT_MODEL_CONFIGS: Dict[str, Any] = {
     "device": 0, # GPU 0; use "auto" for sharding or -1 for CPU
@@ -24,15 +20,8 @@ DEFAULT_MODEL_CONFIGS: Dict[str, Any] = {
     }
 }
 
-DEFAULT_LOG_CONFIG: Dict[str, Any] = {
-    "level": "info",
-    "path": "./server.log",
-}
-
 # parse arguments.
 # ---------------------------------------------------------------------
-# arguments setting levels: arguments > configs.json > default
-
 parser = argparse.ArgumentParser("Serve a HF chat model via FastAPI.")
 parser.add_argument("--models", type=str, nargs='+', help="🤗 Hub model ID or local path")
 parser.add_argument("--device", default='cuda:0', help="GPU idx, 'auto', or 'cpu'")
@@ -41,36 +30,20 @@ parser.add_argument("--port", type=int, default=8000)
 parser.add_argument("--hf-token", type=str, default=None, help="Hugging Face access token for CLI login")
 args = parser.parse_args()
 
-# load configs from configs.json
-configs = load_json_cfg(CONFIG_PATH)
-model_configs = deep_merge_dict(DEFAULT_MODEL_CONFIGS, configs.get("model", {}))
-log_configs   = deep_merge_dict(DEFAULT_LOG_CONFIG, configs.get("log", {}))
-
-# update model_configs from arguments
-model_configs['device'] = args.device
-model_configs['max_concurrency'] = args.max_concurrency
-
 # set up logging
 # ----------------------------------------------------------------------
-_log_level_name = str(log_configs.get("level", "info")).lower()
-_numeric_level  = getattr(logging, _log_level_name.upper())
-
-logging.basicConfig(
-    filename=log_configs["path"],
-    level=_numeric_level,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
-logging.info("Logging initialised → %s (level=%s)", log_configs["path"], _log_level_name)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.info("Logging initialised (level=INFO)")
 
 
 # Hugging Face CLI login
-print("[INFO] Logging into Hugging Face CLI...")
+logging.info("Logging into Hugging Face CLI...")
 try:
     from huggingface_hub import login as hf_login_func
     if args.hf_token:
         hf_login_func(token=args.hf_token, add_to_git_credential=True)
 except Exception as e:
-    print(f"[ERROR] Hugging Face login failed: {e}")
+    logging.error(f"Hugging Face login failed: {e}")
     exit(1)
 
 
@@ -85,19 +58,19 @@ for model in args.models:
     logging.info(f"Loading tokenizer for {model} ...")
     tokenizers[model] = AutoTokenizer.from_pretrained(model, trust_remote_code=True)
 
-    logging.info(f"Loading model on device={model_configs['device']} ...")
+    logging.info(f"Loading model on device={args.device} ...")
     hf_pipelines[model] = pipeline(
         task="text-generation",
         model=model,
         tokenizer=tokenizers[model],
         trust_remote_code=True,
-        device_map=model_configs['device']
+        device_map=args.device
     )
     infos[model] = {
         "param_m": sum(p.numel() for p in hf_pipelines[model].model.parameters()) // 1_000_000_000,
-        "max_concurrency": model_configs["max_concurrency"],
+        "max_concurrency": args.max_concurrency,
     }
-    semas[model] = asyncio.Semaphore(model_configs["max_concurrency"])
+    semas[model] = asyncio.Semaphore(args.max_concurrency)
 
 
 # build FastAPI app.
@@ -145,9 +118,9 @@ async def chat(req: ChatRequest):
         raise HTTPException(400, "Model name mismatch")
     
     gcfg = {
-        "temperature":    req.temperature    or model_configs["generation"]["temperature"],
-        "top_p":          req.top_p          or model_configs["generation"]["top_p"],
-        "max_new_tokens": req.max_new_tokens or model_configs["generation"]["max_new_tokens"],
+        "temperature":    req.temperature    or DEFAULT_MODEL_CONFIGS["generation"]["temperature"],
+        "top_p":          req.top_p          or DEFAULT_MODEL_CONFIGS["generation"]["top_p"],
+        "max_new_tokens": req.max_new_tokens or DEFAULT_MODEL_CONFIGS["generation"]["max_new_tokens"],
     }
     prompt = build_prompt(req.model, req.messages)
     try:
@@ -171,9 +144,9 @@ async def chat(req: ChatRequest):
 def meta():
     return {
         "name": args.models,
-        "device": model_configs["device"],
+        "device": args.device,
         "max_concurrency": args.max_concurrency,
-        "generation_defaults": model_configs["generation"],
+        "generation_defaults": DEFAULT_MODEL_CONFIGS["generation"],
         "param_count": [f'{infos[model]["param_m"]}B' for model in args.models],
     }
 
@@ -185,7 +158,7 @@ if __name__ == "__main__":
             app,
             host="0.0.0.0",
             port=args.port,
-            log_level=_log_level_name,
+            log_level="info",
         )
     except Exception:
         logging.exception("Fatal error in main loop")

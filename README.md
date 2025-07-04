@@ -20,6 +20,15 @@ Quick start
     ```bash
     pip install -r requirements.txt
     ```
+    > [!IMPORTANT]
+    > If you want to run the backend using `sglang`, you should run the following shell commands.
+    > ```shell
+    > pip install --upgrade pip
+    > pip install uv
+    > uv pip install "sglang[all]>=0.4.8.post1" 
+    > ```
+    > Please note that `sglang` requires `nvcc`. If you have not installed it, you can install it by:
+    > `conda install -c conda-forge cudatoolkit-dev`
 
 2.  Add or edit the optional **configs.json**
 

@@ -3,6 +3,7 @@ import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 
+import torch
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -64,7 +65,8 @@ for model in args.models:
         model=model,
         tokenizer=tokenizers[model],
         trust_remote_code=True,
-        device_map=args.device
+        device_map=args.device,
+        torch_dtype=torch.bfloat16
     )
     infos[model] = {
         "param_m": sum(p.numel() for p in hf_pipelines[model].model.parameters()) // 1_000_000_000,

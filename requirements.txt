@@ -5,13 +5,13 @@ pydantic==2.11.1           # FastAPI’s data-validation backbone (v2.11.1, 28 M
 
 # --- HF model & runtime ------------------------------------------------
 transformers==4.51.3       # Hugging Face pipeline (v4.51.3, 14 Apr 2025)
-torch==2.7.1               # PyTorch backend (v2.7.1, 23 Apr 2025)
+torch==2.7.0               # PyTorch backend (v2.7.1, 23 Apr 2025)
 accelerate==1.6.0          # device-placement helpers for HF (v1.6.0, 1 Apr 2025)
+vllm>=0.6.2                # vllm backend
 # The following commands are required for proper installation:
 #   pip install --upgrade pip
 #   pip install uv
 #   uv pip install "sglang[all]>=0.4.8.post1"
-sglang[all]>=0.4.8.post1    # sglang backend with all extras (install via uv pip)
 
 # --- client / misc utilities ------------------------------------------
 openai==1.78.0             # optional local client calls (latest 2025-05-07)

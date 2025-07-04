@@ -28,8 +28,10 @@ Quick start
     > uv pip install "sglang[all]>=0.4.8.post1" 
     > ```
     > Please note that `sglang` requires `nvcc`. If you have not installed it, you can install it by:
-    > `conda install -c nvidia cuda-toolkit`
-
+    > ```
+    > conda install -c nvidia cuda-toolkit
+    > ```
+    > Currently, `sglang` requires `pytorch==2.7.1` while `vllm` requires `pytorch<=2.7.0`. You should use them separately.
 2.  Add or edit the optional **configs.json**
 
     ```json
